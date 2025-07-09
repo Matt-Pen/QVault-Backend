@@ -447,29 +447,55 @@ public class SampleService {
             // set email subject field
             message.setSubject("Use this token to reset your password");
             // set the content of the email message
-            String htmlContent =  "<html>" +
-                    "  <body style='font-family: Arial, sans-serif; padding: 20px;'>" +
-                    "    <h2 style='color: #333;'>Reset Your Password</h2>" +
-                    "    <p>Hi there,</p>" +
-                    "    <p>You recently requested to reset your password. Please use the verification code below:</p>" +
-                    "    <div style='" +
-                    "        text-align: center;" +
-                    "        font-size: 24px;" +
-                    "        font-weight: bold;" +
-                    "        background: #f4f4f4;" +
-                    "        border-radius: 8px;" +
-                    "        padding: 12px;" +
-                    "        width: fit-content;" +
-                    "        margin: 20px auto;" +
-                    "    '>" +
-                    "      <span style='letter-spacing: 2px;'>" + token + "</span>" +
-                    "    </div>" +
-                    "    <p>This code will expire in <strong>10 minutes</strong>.</p>" +
-                    "    <p>If you did not request a password reset, you can safely ignore this email.</p>" +
-                    "    <br/>" +
-                    "    <p>Best regards,<br><strong>The Qvault Team</strong></p>" +
-                    "    <p style='font-size: 12px; color: #888;'>© 2025 Qvault Inc. All rights reserved.</p>" +
-                    "  </body>" +
+            String htmlContent =  "<!DOCTYPE html>\n" +
+                    "<html>\n" +
+                    "  <body style=\"font-family: Arial, sans-serif; padding: 20px; background-color: #ffffff;\">\n" +
+                    "   \n" +
+                    "    <!-- Logo -->\n" +
+                    "    <div style=\"text-align: center; margin-bottom: 20px;\">\n" +
+                    "      <img src=\"https://i.postimg.cc/dVLPY53r/new.png\n\" alt=\"Qvault Logo\" width=\"400\" height=\"225\"/>\n" +
+                    "    </div>\n" +
+                    "\n" +
+                    "    <!-- Heading -->\n" +
+                    "    <h2 style=\"color: #333;\">Reset Your Password</h2>\n" +
+                    "\n" +
+                    "    <!-- Message -->\n" +
+                    "    <p style=\"font-size: 15px;\">Hi there,</p>\n" +
+                    "    <p style=\"font-size: 15px;\">You recently requested to reset your password. Please use the verification code below:</p>\n" +
+                    "\n" +
+                    "    <!-- Token Box -->\n" +
+                    "    <div style=\"\n" +
+                    "      text-align: center;\n" +
+                    "      font-size: 26px;\n" +
+                    "      font-weight: bold;\n" +
+                    "      background: #f4f4f4;\n" +
+                    "      border-radius: 8px;\n" +
+                    "      padding: 14px;\n" +
+                    "      width: fit-content;\n" +
+                    "      margin: 20px auto;\n" +
+                    "      color: #0066cc;\n" +
+                    "      font-family: 'Courier New', Courier, monospace;\n" +
+                    "      letter-spacing: 2px;\n" +
+                    "    \">\n" +
+                    "      TBlh1X\n" +
+                    "    </div>\n" +
+                    "\n" +
+                    "    <!-- Expiry -->\n" +
+                    "    <p style=\"color: red; font-weight: bold;\">Token is only valid for 10 Minutes.</p>\n" +
+                    "\n" +
+                    "    <!-- Ignore note -->\n" +
+                    "    <p style=\"font-size: 14px; color: #555;\">\n" +
+                    "      If you did not request a password reset, you can safely ignore this email.\n" +
+                    "    </p>\n" +
+                    "\n" +
+                    "    <!-- Footer -->\n" +
+                    "    <hr style=\"margin-top: 40px; border: none; border-top: 1px solid #ccc;\" />\n" +
+                    "    <p style=\"font-size: 13px; color: #888;\">\n" +
+                    "      Regards,<br />\n" +
+                    "      <strong>The Qvault Team</strong><br />\n" +
+                    "      © 2025 Qvault Inc. All rights reserved.\n" +
+                    "    </p>\n" +
+                    "  </body>\n" +
                     "</html>";
 
             message.setContent(htmlContent, "text/html");

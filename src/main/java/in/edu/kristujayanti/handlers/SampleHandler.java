@@ -5,13 +5,16 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.CorsHandler;
+
 public class SampleHandler extends AbstractVerticle {
     public void start(Promise<Void> startPromise) {
         HttpServer server = vertx.createHttpServer();
-        Vertx vertx = Vertx.vertx();
+
         Router router = Router.router(vertx);
 //        router.route().handler(BodyHandler.create());
         SampleService smp= new SampleService();
@@ -27,7 +30,12 @@ public class SampleHandler extends AbstractVerticle {
 
 
 
-
+        router.route().handler(CorsHandler.create("*")
+                .allowedMethod(HttpMethod.POST)
+                .allowedMethod(HttpMethod.GET)
+                .allowedMethod(HttpMethod.DELETE)
+                .allowedMethod(HttpMethod.PATCH)
+                .allowedHeader("Content-Type"));
         Future<HttpServer> fut=server.requestHandler(router).listen(8080,"0.0.0.0");
         if(fut.succeeded()){
             System.out.println("Server running at http://localhost:8080");
