@@ -289,14 +289,77 @@ public class SampleService {
         return passwordEncoder.matches(rawPassword, hashedPassword);
     }
 
-    public void sendemail(String pass, String email) {
+    public int resetpass(RoutingContext ctx)
+    {   ctx.response().setChunked(true);
+        int set=0;
+        String email=ctx.request().getParam("email");
+        String entoken=ctx.request().getParam("token");
+        String pass=ctx.request().getParam("pass");
+        if(entoken==null){
+            String token=generateID(6);
+            setoken(token,email);
+            sendtokenemail(token,email);
+            ctx.response().write("Password reset token sent to Email.\n Token only valid for 10 Minutes");
+            set=1;
+        }
+        if(set!=1){
+//            System.out.println("Received token: " + entoken);
+            String tokemail=getoken(entoken);
+            if(tokemail==null){
+                set=1;
+                ctx.response().write("Invalid token.");
+            }else {
+//            System.out.println("redis email"+tokemail);
+                if (tokemail.equals(email) || set != 1) {
+                    String hashpass = hashPassword(pass);
+                    Bson filter = Filters.eq("email", email);
+                    Bson update = Updates.set("pass", hashpass);
+                    UpdateResult res = users.updateOne(filter, update);
+                    if (res.wasAcknowledged()) {
+                        ctx.response().write("Password successfully changed.");
+                        deltoken(entoken);
+                    }
+                } else {
+                    ctx.response().write("invalid token or token has expired");
+                }
+            }
+        }
+        ctx.response().end();
+        return set;
+    }
+
+    public void searchfilter(RoutingContext ctx){
+        String subname=ctx.request().getParam("subject");
+        String courseid=ctx.request().getParam("courseid");
+        String coursename=ctx.request().getParam("coursename");
+        String term=ctx.request().getParam("term");
+        String year=ctx.request().getParam("year");
+        String sem=ctx.request().getParam("sem");
+
+
+    }
+
+
+    public static String generateID(int length) {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz0123456789";
+        StringBuilder sb = new StringBuilder();
+        Random random = new Random();
+        for (int i = 0; i < length; i++) {
+            int index = random.nextInt(chars.length());
+            sb.append(chars.charAt(index));
+        }
+
+        return sb.toString();
+    }
+
+    public void sendtokenemail(String token,String email){
         String to = email;
         // provide sender's email ID
-        String from = "23bcna02@kristujayanti.com";
+        String from = srt.from;
 
         // provide Mailtrap's username
-        final String username = "abhinavgr77@gmail.com";
-        final String password = "ezdg gmel oceq bsgk";
+        final String username = srt.username;
+        final String password = srt.password;
 
         // provide Mailtrap's host address
         String host = "smtp.gmail.com";
@@ -325,19 +388,42 @@ public class SampleService {
             // set To email field
             message.setRecipient(Message.RecipientType.TO, new InternetAddress(to));
             // set email subject field
-            message.setSubject("Use this Password to login to your Student Account.");
+            message.setSubject("Use this token to reset your password");
             // set the content of the email message
-            message.setText("The Auto-generated password is: " + pass);
+            String htmlContent = "<!DOCTYPE html><html><body style='font-family: Arial, sans-serif;'>" +
+                    "<h2 style='color: #333;'>Use this token to reset your password</h2>" +
+                    "<p>The Token for resetting password is:</p>" +
+                    "<h3 style='background-color: #f1f1f1; padding: 10px; width: fit-content;'>" + token + "</h3>" +
+                    "<p style='color: gray;'>Token is only valid for <strong>10 Minutes</strong>.</p>" +
+                    "<br/><hr style='border:none;border-top:1px solid #ccc;'>" +
+                    "<p style='font-size: 12px; color: #888;'>Qvault Team</p>" +
+                    "</body></html>";
+
+            message.setContent(htmlContent, "text/html");
+
 
             // send the email message
             Transport.send(message);
 
-            System.out.println("Email Message Sent Successfully!");
+            System.out.println("Email Message token Sent Successfully!");
 
         } catch (MessagingException e) {
             throw new RuntimeException(e);
         }
 
+    }
+
+
+
+    public void setoken(String key, String value)
+    {
+        jedis.setex(key,600,value);
+    }
+    public String getoken(String token){
+        return jedis.get(token);
+    }
+    public void deltoken(String key){
+        jedis.del(key);
     }
     //Your Logic Goes Here
 }
