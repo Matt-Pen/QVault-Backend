@@ -19,7 +19,7 @@ public class SampleHandler extends AbstractVerticle {
         router.post("/upload").handler(BodyHandler.create());
         router.post("/upload").handler(smp::handleupload);
         router.get("/getqp").handler(smp::getqp);
-
+        router.post("/usersign").handler(smp::usersign);
 
 
 
