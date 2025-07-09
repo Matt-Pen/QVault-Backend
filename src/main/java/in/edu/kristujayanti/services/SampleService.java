@@ -1,3 +1,4 @@
+
 package in.edu.kristujayanti.services;
 
 import com.mongodb.client.MongoClient;
@@ -14,6 +15,7 @@ import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import in.edu.kristujayanti.JwtUtil;
+import in.edu.kristujayanti.secretclass;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
@@ -43,59 +45,15 @@ public class SampleService {
 
     Jedis jedis = new Jedis("localhost", 6379);
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    secretclass srt = new secretclass();
     Vertx vertx = Vertx.vertx();
     HttpServer server = vertx.createHttpServer();
-    String connectionString = "mongodb://localhost:27017/";
+    String connectionString = srt.constr;
     MongoClient mongoClient = MongoClients.create(connectionString);
-    MongoDatabase database = mongoClient.getDatabase("DB");
-    MongoCollection<Document> users = database.getCollection("users");
-
-
-    public void userlog(RoutingContext ctx) {
-        JsonObject login = ctx.getBodyAsJson();
-        JsonArray jarr = new JsonArray();
-        String user = login.getString("email");
-        String pwd = login.getString("password");
-        String hashlog=hashit(pwd);
-        String status = "";
-        ctx.response().setChunked(true);
-
-        for (Document doc : users.find()) {
-            String dbuser = doc.getString("user");
-            String dbpass = doc.getString("pass");
-
-            if (dbuser.equals(user)) {
-                if (dbpass.equals(hashlog)) {
-                    status = "Login was successfull";
-                } else {
-                    status = "Password is Incorrect";
-                }
-            } else {
-                status = "Invalid Login Credentials";
-            }
-        }
-
-        ctx.response().end(jarr.encodePrettily());
-
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    MongoDatabase database = mongoClient.getDatabase("questpaper");
+    MongoCollection<Document> users = database.getCollection("Users");
+//    MongoCollection<Document> tasks = database.getCollection("tasks");
+//    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
 //    public void handleupload(RoutingContext ctx){
 //        ctx.fileUploads().forEach(upload -> {
@@ -144,12 +102,16 @@ public class SampleService {
 
     public void handleupload(RoutingContext ctx) {
 
-        List<Binary> imageList = new ArrayList<>();
+        List<Binary> pdfList = new ArrayList<>();
 
         ctx.fileUploads().forEach(upload -> {
             try {
-                byte[] imageBytes = Files.readAllBytes(Paths.get(upload.uploadedFileName()));
-                imageList.add(new Binary(imageBytes));
+                if (upload.contentType().equals("application/pdf")) {
+                    byte[] pdfBytes = Files.readAllBytes(Paths.get(upload.uploadedFileName()));
+                    pdfList.add(new Binary(pdfBytes));
+                } else {
+                    System.out.println("Skipping non-PDF file: " + upload.fileName());
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -175,11 +137,15 @@ public class SampleService {
                     .append("term", examTerm)
                     .append("year", year)
                     .append("sem", sem)
-                    .append("images", imageList); //array
+                    .append("files", pdfList); //array
 
             collection.insertOne(doc);
 
             ctx.response().end("Multiple pages uploaded and grouped into one document");
+        } catch (Exception e) {
+            e.printStackTrace();
+            ctx.response().setStatusCode(500).end("Failed to save PDF");
+
         }
 
     }
@@ -195,7 +161,7 @@ public class SampleService {
             // Find first document where coursename matches
 //            Document doc = collection.find(new Document("subname", coursename)).first();
             Pattern pattern = Pattern.compile(coursename, Pattern.CASE_INSENSITIVE);
-            Document doc=collection.find(Filters.regex("subname",pattern)).first();
+            Document doc = collection.find(Filters.regex("subname", pattern)).first();
 
 
             if (doc == null) {
@@ -205,17 +171,14 @@ public class SampleService {
 
             // Get image binary and content type
 //            Binary imageBinary = doc.get("image", Binary.class);
-            List<Binary> images = (List<Binary>) doc.get("images");
-            String contentType = doc.getString("content_type");
-
-            // Set response headers and send image
-
+            List<Binary> pdfs = (List<Binary>) doc.get("files");
             StringBuilder html = new StringBuilder("<html><body>");
 
-            for (Binary bin : images) {
-                String base64Image = Base64.getEncoder().encodeToString(bin.getData());
-                html.append("<img src='data:").append(contentType).append(";base64,")
-                        .append(base64Image).append("' style='width:100%; display:block; margin-bottom:20px;'/>");
+            for (Binary bin : pdfs) {
+                String base64PDF = Base64.getEncoder().encodeToString(bin.getData());
+                html.append("<iframe src='data:application/pdf;base64,")
+                        .append(base64PDF)
+                        .append("' width='100%' height='600px' style='margin-bottom: 20px;'></iframe>");
             }
 
             html.append("</body></html>");
@@ -224,10 +187,12 @@ public class SampleService {
                     .putHeader("Content-Type", "text/html")
                     .end(html.toString());
 
+
+//
 //            JsonArray result = new JsonArray();
-//            for (Binary bin : images) {
-//                String base64Image = Base64.getEncoder().encodeToString(bin.getData());
-//                result.add("data:image/jpeg;base64," + base64Image);
+//            for (Binary bin : pdfs) {
+//                String base64pdf = Base64.getEncoder().encodeToString(bin.getData());
+//                result.add("data:image/jpeg;base64," + base64pdf);
 //            }
 //
 //            ctx.response()
@@ -242,9 +207,86 @@ public class SampleService {
 
     }
 
+    public void usersign(RoutingContext ctx) {
+        String email = ctx.request().getParam("email");
+        String pass = ctx.request().getParam("pass");
+        String status = "";
+        ctx.response().setChunked(true);
+        Document docs = users.find().filter(Filters.eq("email", email)).first();
+
+        if (docs != null) {
+            status = "Email already exist";
+
+        } else {
+            if (email.matches(".*\\d.*") && email.contains("kristujayanti.com")) {
+                String role = "student";
+                String hashpass = hashPassword(pass);
+                Document doc = new Document("email", email).append("pass", hashpass).append("role", role);
+                InsertOneResult ins = users.insertOne(doc);
+                if (ins.wasAcknowledged()) {
+                    status = "Signed in successfully, please proceed to login";
+                }
+            } else if (email.contains("kristujayanti.com")) {
+                String role = "teacher";
+                String hashpass = hashPassword(pass);
+                Document doc = new Document("email", email).append("pass", hashpass).append("role", role);
+                InsertOneResult ins = users.insertOne(doc);
+                if (ins.wasAcknowledged()) {
+                    status = "Signed in successfully, please proceed to login";
+                }
+            } else {
+                status = "Invalid Email";
+
+            }
+
+        }
+        ctx.response().end(status);
 
 
+    }
+
+    public void userlog(RoutingContext ctx) {
+
+        JsonArray jarr = new JsonArray();
+        String user = ctx.request().getParam("Email");
+        String pwd = ctx.request().getParam("Password");
+        String hashlog = hashPassword(pwd);
+        String status = "";
+        String dash = "";
+        ctx.response().setChunked(true);
 
 
+        for (Document doc : users.find()) {
+            String dbuser = doc.getString("email");
+            String dbpass = doc.getString("pass");
+            String dbrole = doc.getString("role");
+
+            if (dbuser.equals(user)) {
+                if (verifyPassword(pwd, dbpass)) {
+                    status = "Login was successfull";
+                    if (dbrole.equals("student")) {
+                        dash = "student dashboard";
+                        break;
+                    }
+                    else if (dbrole.equals("teacher")) {
+                        dash = "teacher dashboard";
+                        break;
+
+                    }
+                }
+
+            }else {
+                status = "Invalid Login Credentials";
+            }
+        }
+        ctx.response().end(status+"\n"+dash);
+    }
+
+    public String hashPassword (String rawPassword){
+        return passwordEncoder.encode(rawPassword);
+    }
+    public boolean verifyPassword (String rawPassword, String hashedPassword){
+        return passwordEncoder.matches(rawPassword, hashedPassword);
+    }
     //Your Logic Goes Here
 }
