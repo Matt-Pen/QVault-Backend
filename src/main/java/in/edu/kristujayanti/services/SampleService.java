@@ -30,6 +30,8 @@ import org.bson.conversions.Bson;
 import org.bson.types.Binary;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import redis.clients.jedis.Jedis;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -206,6 +208,62 @@ public class SampleService {
 
     }
 
+
+    public void getqp2(RoutingContext ctx){
+        ctx.response().setChunked(true);
+        String coursename = ctx.request().getParam("subname");
+
+        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            MongoDatabase database = mongoClient.getDatabase("questpaper");
+            MongoCollection<Document> collection = database.getCollection("qpimage");
+
+            // Find first document where coursename matches
+//            Document doc = collection.find(new Document("subname", coursename)).first();
+            Pattern pattern = Pattern.compile(coursename, Pattern.CASE_INSENSITIVE);
+            Document doc = collection.find(Filters.regex("subname", pattern)).first();
+            if (doc == null) {
+                ctx.response().setStatusCode(404).end("Image not found for coursename: " + coursename);
+                return;
+            }
+
+
+            ArrayList<Object> main = new ArrayList<>();
+            for(Document docs: collection.find(Filters.regex("subname", pattern))){
+                String subname=docs.getString("subname");
+                String courseid=docs.getString("courseid");
+                String coursename2=docs.getString("coursename");
+                String term=docs.getString("term");
+                String year=docs.getString("year");
+                String sem=docs.getString("sem");
+                ArrayList<Object> list1 = new ArrayList<>();
+                ArrayList<Binary> pdfs = (ArrayList<Binary>) doc.get("files");
+
+                list1.add(subname);
+                list1.add(courseid);
+                list1.add(coursename2);
+                list1.add(term);
+                list1.add(year);
+                list1.add(sem);
+                list1.add(pdfs);
+
+                main.add(list1);
+
+            }
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            String jsonOutput = gson.toJson(main);
+            ctx.response()
+                    .putHeader("Content-Type", "application/json")
+                    .end(jsonOutput);
+
+
+
+        }catch (Exception e) {
+            e.printStackTrace();
+            ctx.response().setStatusCode(500).end("Failed to fetch image");
+        }
+
+
+    }
     public void usersign(RoutingContext ctx) {
         String email = ctx.request().getParam("email");
         String pass = ctx.request().getParam("pass");
@@ -389,7 +447,16 @@ public class SampleService {
             // set email subject field
             message.setSubject("Use this token to reset your password");
             // set the content of the email message
-            message.setText("The Token for resetting password is: "+ token+"\nToken is only valid for 10 Minutes.");
+            String htmlContent = "<!DOCTYPE html><html><body style='font-family: Arial, sans-serif;'>" +
+                    "<h2 style='color: #333;'>Use this token to reset your password</h2>" +
+                    "<p>The Token for resetting password is:</p>" +
+                    "<h3 style='background-color: #f1f1f1; padding: 10px; width: fit-content;'>" + token + "</h3>" +
+                    "<p style='color: gray;'>Token is only valid for <strong>10 Minutes</strong>.</p>" +
+                    "<br/><hr style='border:none;border-top:1px solid #ccc;'>" +
+                    "<p style='font-size: 12px; color: #888;'>Qvault Team</p>" +
+                    "</body></html>";
+
+            message.setContent(htmlContent, "text/html");
 
             // send the email message
             Transport.send(message);
