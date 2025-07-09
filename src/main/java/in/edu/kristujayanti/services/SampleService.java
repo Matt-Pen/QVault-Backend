@@ -326,6 +326,19 @@ public class SampleService {
         ctx.response().end();
         return set;
     }
+
+    public void searchfilter(RoutingContext ctx){
+       String subname=ctx.request().getParam("subject");
+       String courseid=ctx.request().getParam("courseid");
+       String coursename=ctx.request().getParam("coursename");
+       String term=ctx.request().getParam("term");
+       String year=ctx.request().getParam("year");
+       String sem=ctx.request().getParam("sem");
+
+
+    }
+
+
     public static String generateID(int length) {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz0123456789";
         StringBuilder sb = new StringBuilder();

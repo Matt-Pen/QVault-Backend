@@ -28,7 +28,7 @@ public class SampleHandler extends AbstractVerticle {
 
 
 
-        Future<HttpServer> fut=server.requestHandler(router).listen(8080);
+        Future<HttpServer> fut=server.requestHandler(router).listen(8080,"0.0.0.0");
         if(fut.succeeded()){
             System.out.println("Server running at http://localhost:8080");
         }
