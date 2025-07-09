@@ -14,7 +14,6 @@ import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import in.edu.kristujayanti.JwtUtil;
-import in.edu.kristujayanti.secretclass;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
@@ -40,19 +39,63 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class SampleService {
-    JwtUtil jtil=new JwtUtil();
+    JwtUtil jtil = new JwtUtil();
 
     Jedis jedis = new Jedis("localhost", 6379);
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-    secretclass srt=new secretclass();
     Vertx vertx = Vertx.vertx();
     HttpServer server = vertx.createHttpServer();
-    String connectionString = srt.constr;
+    String connectionString = "mongodb://localhost:27017/";
     MongoClient mongoClient = MongoClients.create(connectionString);
-//    MongoDatabase database = mongoClient.getDatabase("To-do-list");
-//    MongoCollection<Document> users = database.getCollection("Users");
-//    MongoCollection<Document> tasks = database.getCollection("tasks");
-//    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    MongoDatabase database = mongoClient.getDatabase("DB");
+    MongoCollection<Document> users = database.getCollection("users");
+
+
+    public void userlog(RoutingContext ctx) {
+        JsonObject login = ctx.getBodyAsJson();
+        JsonArray jarr = new JsonArray();
+        String user = login.getString("email");
+        String pwd = login.getString("password");
+        String hashlog=hashit(pwd);
+        String status = "";
+        ctx.response().setChunked(true);
+
+        for (Document doc : users.find()) {
+            String dbuser = doc.getString("user");
+            String dbpass = doc.getString("pass");
+
+            if (dbuser.equals(user)) {
+                if (dbpass.equals(hashlog)) {
+                    status = "Login was successfull";
+                } else {
+                    status = "Password is Incorrect";
+                }
+            } else {
+                status = "Invalid Login Credentials";
+            }
+        }
+
+        ctx.response().end(jarr.encodePrettily());
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //    public void handleupload(RoutingContext ctx){
 //        ctx.fileUploads().forEach(upload -> {

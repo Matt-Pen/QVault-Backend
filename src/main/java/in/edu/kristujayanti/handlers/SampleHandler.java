@@ -16,6 +16,7 @@ public class SampleHandler extends AbstractVerticle {
 //        router.route().handler(BodyHandler.create());
         SampleService smp= new SampleService();
 
+        router.post("/login").handler(smp::userlog);
         router.post("/upload").handler(BodyHandler.create());
         router.post("/upload").handler(smp::handleupload);
         router.get("/getqp").handler(smp::getqp);
