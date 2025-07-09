@@ -25,12 +25,13 @@ public class SampleHandler extends AbstractVerticle {
         router.post("/usersign").handler(smp::usersign);
         router.post("/userlog").handler(smp::userlog);
         router.post("/resetpass").handler(smp::resetpass);
+        router.get("/test").handler(ctx->
+                ctx.response().end("Heloooo"));
 
 
 
 
-
-        router.route().handler(CorsHandler.create("*")
+        router.route().handler(CorsHandler.create("172.19.3.136")
                 .allowedMethod(HttpMethod.POST)
                 .allowedMethod(HttpMethod.GET)
                 .allowedMethod(HttpMethod.DELETE)
