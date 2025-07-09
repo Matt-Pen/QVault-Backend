@@ -21,6 +21,7 @@ public class SampleHandler extends AbstractVerticle {
         router.get("/getqp").handler(smp::getqp);
         router.post("/usersign").handler(smp::usersign);
         router.post("/userlog").handler(smp::userlog);
+        router.post("/resetpass").handler(smp::resetpass);
 
 
 
