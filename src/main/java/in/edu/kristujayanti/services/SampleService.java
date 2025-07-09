@@ -447,14 +447,30 @@ public class SampleService {
             // set email subject field
             message.setSubject("Use this token to reset your password");
             // set the content of the email message
-            String htmlContent = "<!DOCTYPE html><html><body style='font-family: Arial, sans-serif;'>" +
-                    "<h2 style='color: #333;'>Use this token to reset your password</h2>" +
-                    "<p>The Token for resetting password is:</p>" +
-                    "<h3 style='background-color: #f1f1f1; padding: 10px; width: fit-content;'>" + token + "</h3>" +
-                    "<p style='color: gray;'>Token is only valid for <strong>10 Minutes</strong>.</p>" +
-                    "<br/><hr style='border:none;border-top:1px solid #ccc;'>" +
-                    "<p style='font-size: 12px; color: #888;'>Qvault Team</p>" +
-                    "</body></html>";
+            String htmlContent =  "<html>" +
+                    "  <body style='font-family: Arial, sans-serif; padding: 20px;'>" +
+                    "    <h2 style='color: #333;'>Reset Your Password</h2>" +
+                    "    <p>Hi there,</p>" +
+                    "    <p>You recently requested to reset your password. Please use the verification code below:</p>" +
+                    "    <div style='" +
+                    "        text-align: center;" +
+                    "        font-size: 24px;" +
+                    "        font-weight: bold;" +
+                    "        background: #f4f4f4;" +
+                    "        border-radius: 8px;" +
+                    "        padding: 12px;" +
+                    "        width: fit-content;" +
+                    "        margin: 20px auto;" +
+                    "    '>" +
+                    "      <span style='letter-spacing: 2px;'>" + token + "</span>" +
+                    "    </div>" +
+                    "    <p>This code will expire in <strong>10 minutes</strong>.</p>" +
+                    "    <p>If you did not request a password reset, you can safely ignore this email.</p>" +
+                    "    <br/>" +
+                    "    <p>Best regards,<br><strong>The Qvault Team</strong></p>" +
+                    "    <p style='font-size: 12px; color: #888;'>© 2025 Qvault Inc. All rights reserved.</p>" +
+                    "  </body>" +
+                    "</html>";
 
             message.setContent(htmlContent, "text/html");
 
