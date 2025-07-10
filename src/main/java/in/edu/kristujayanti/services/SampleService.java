@@ -307,12 +307,11 @@ public class SampleService {
         System.out.println("chandu here");
         String user = ctx.request().getParam("Email");
         String pwd = ctx.request().getParam("Password");
-        String status = "";
+        String status = "failed";
         String dash = "";
         ctx.response().setChunked(true);
 
-
-        for (Document doc : users.find()) {
+        Document doc=users.find(Filters.eq("email",user)).first();
             System.out.println("Chandu here");
             String dbuser = doc.getString("email");
             String dbpass = doc.getString("pass");
@@ -324,20 +323,16 @@ public class SampleService {
                     if (dbrole.equals("student")) {
                         dash = "student";
                         System.out.println("in student");
-
-                        break;
                     }
                     else if (dbrole.equals("teacher")) {
                         dash = "teacher";
-                        break;
-
                     }
+                }else{
+                    status="password failed";
                 }
 
-            }else {
-                status = "Invalid Login Credentials";
             }
-        }
+
         JsonObject job=new JsonObject();
         job.put("message",status).put("role",dash);
 
