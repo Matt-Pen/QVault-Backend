@@ -16,22 +16,23 @@ public class SampleHandler extends AbstractVerticle {
         HttpServer server = vertx.createHttpServer();
 
         Router router = Router.router(vertx);
-//        router.route().handler(BodyHandler.create());
+        router.route().handler(BodyHandler.create());
         SampleService smp= new SampleService();
 
-        router.post("/upload").handler(BodyHandler.create());
-        router.post("/upload").handler(smp::handleupload);
-        router.get("/getqp").handler(smp::getqp2);
         router.post("/usersign").handler(smp::usersign);
         router.post("/userlog").handler(smp::userlog);
         router.post("/resetpass").handler(smp::resetpass);
+        router.post("/upload").handler(BodyHandler.create());
+        router.post("/upload").handler(smp::handleupload);
+        router.get("/getqp").handler(smp::getqp2);
         router.get("/test").handler(ctx->
                 ctx.response().end("Heloooo"));
 
 
 
 
-        router.route().handler(CorsHandler.create("172.19.3.136")
+        router.route().handler(CorsHandler.create("*")
+                .allowedMethod(HttpMethod.OPTIONS)
                 .allowedMethod(HttpMethod.POST)
                 .allowedMethod(HttpMethod.GET)
                 .allowedMethod(HttpMethod.DELETE)

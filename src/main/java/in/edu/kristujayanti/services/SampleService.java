@@ -304,29 +304,31 @@ public class SampleService {
 
     public void userlog(RoutingContext ctx) {
 
-        JsonArray jarr = new JsonArray();
+        System.out.println("chandu here");
         String user = ctx.request().getParam("Email");
         String pwd = ctx.request().getParam("Password");
-        String hashlog = hashPassword(pwd);
         String status = "";
         String dash = "";
         ctx.response().setChunked(true);
 
 
         for (Document doc : users.find()) {
+            System.out.println("Chandu here");
             String dbuser = doc.getString("email");
             String dbpass = doc.getString("pass");
             String dbrole = doc.getString("role");
 
             if (dbuser.equals(user)) {
                 if (verifyPassword(pwd, dbpass)) {
-                    status = "Login was successfull";
+                    status = "successfull";
                     if (dbrole.equals("student")) {
-                        dash = "student dashboard";
+                        dash = "student";
+                        System.out.println("in student");
+
                         break;
                     }
                     else if (dbrole.equals("teacher")) {
-                        dash = "teacher dashboard";
+                        dash = "teacher";
                         break;
 
                     }
@@ -336,7 +338,12 @@ public class SampleService {
                 status = "Invalid Login Credentials";
             }
         }
-        ctx.response().end(status+"\n"+dash);
+        JsonObject job=new JsonObject();
+        job.put("message",status).put("role",dash);
+
+
+        ctx.response().putHeader("Content.Type","application/json").end(job.encode());
+        System.out.println("IN END");
     }
 
         public String hashPassword (String rawPassword){
