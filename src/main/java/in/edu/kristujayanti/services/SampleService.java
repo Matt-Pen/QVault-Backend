@@ -265,13 +265,13 @@ public class SampleService {
     }
     public void usersign(RoutingContext ctx) {
         String email = ctx.request().getParam("email");
-        String pass = ctx.request().getParam("pass");
+        String pass = ctx.request().getParam("password");
         String status = "";
         ctx.response().setChunked(true);
         Document docs = users.find().filter(Filters.eq("email", email)).first();
 
         if (docs != null) {
-            status = "Email already exist";
+            status = "exist";
 
         } else {
             if (email.matches(".*\\d.*") && email.contains("kristujayanti.com")) {
@@ -280,7 +280,7 @@ public class SampleService {
                 Document doc = new Document("email", email).append("pass", hashpass).append("role", role);
                 InsertOneResult ins = users.insertOne(doc);
                 if (ins.wasAcknowledged()) {
-                    status = "Signed in successfully, please proceed to login";
+                    status = "success";
                 }
             } else if (email.contains("kristujayanti.com")) {
                 String role = "teacher";
@@ -288,15 +288,16 @@ public class SampleService {
                 Document doc = new Document("email", email).append("pass", hashpass).append("role", role);
                 InsertOneResult ins = users.insertOne(doc);
                 if (ins.wasAcknowledged()) {
-                    status = "Signed in successfully, please proceed to login";
+                    status = "success";
                 }
             } else {
-                status = "Invalid Email";
+                status = "invalid";
 
             }
 
         }
-        ctx.response().end(status);
+        JsonObject job=new JsonObject().put("message",status);
+        ctx.response().end(job.encode());
 
 
     }
@@ -355,13 +356,14 @@ public class SampleService {
         JsonObject job=new JsonObject();
         int set=0;
         String email=ctx.request().getParam("email");
-        String entoken=ctx.request().getParam("token");
-        String pass=ctx.request().getParam("pass");
+        String entoken=ctx.request().getParam("code");
+        String pass=ctx.request().getParam("newPassword");
         if(entoken==null){
             String token=generateID(6);
             setoken(token,email);
             sendtokenemail(token,email);
-            ctx.response().write("Password reset token sent to Email.\n Token only valid for 10 Minutes");
+            job.put("message","sent");
+
             set=1;
         }
         if(set!=1){
@@ -369,8 +371,8 @@ public class SampleService {
             String tokemail=getoken(entoken);
             if(tokemail==null){
                 set=1;
-                job.put("token","invalid");
-                ctx.response().write(job.encode());
+                job.put("message","invalid");
+
             }else {
 //            System.out.println("redis email"+tokemail);
                 if (tokemail.equals(email) || set != 1) {
@@ -379,18 +381,44 @@ public class SampleService {
                     Bson update = Updates.set("pass", hashpass);
                     UpdateResult res = users.updateOne(filter, update);
                     if (res.wasAcknowledged()) {
-                        job.put("status","success");
-                        ctx.response().write("Password successfully changed.");
+                        job.put("message","success");
+
                         deltoken(entoken);
                     }
                 } else {
-                    job.put("token","invalid");
-                    ctx.response().write(job.encode());
+                    job.put("message","invalid");
+
                 }
             }
         }
-        ctx.response().end();
+        ctx.response().end(job.encode());
         return set;
+    }
+
+    public void delqp(RoutingContext ctx){
+        ctx.response().setChunked(true);
+        String courseid=ctx.request().getParam("courseid");
+        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            MongoDatabase database = mongoClient.getDatabase("questpaper");
+            MongoCollection<Document> collection = database.getCollection("qpimage");
+
+            Bson filter=Filters.eq("courseid",courseid);
+            DeleteResult del=collection.deleteOne(filter);
+            if(del.wasAcknowledged()){
+                ctx.response().write("success");
+
+            }else{
+                ctx.response().write("failed");
+
+            }
+        ctx.response().end();
+
+        }catch (Exception e) {
+            e.printStackTrace();
+            ctx.response().setStatusCode(500).end("Failed to fetch image");
+        }
+
+
     }
 
     public void searchfilterpage(RoutingContext ctx){
@@ -442,7 +470,7 @@ public class SampleService {
 
            }catch (Exception e) {
                e.printStackTrace();
-               ctx.response().setStatusCode(500).end("Failed to fetch image");
+               ctx.response().setStatusCode(500).end("search failed");
            }
 
        }
@@ -507,7 +535,7 @@ public class SampleService {
 
             }catch (Exception e) {
                 e.printStackTrace();
-                ctx.response().setStatusCode(500).end("Failed to fetch image");
+                ctx.response().setStatusCode(500).end("search failed");
             }
 
     }
@@ -630,6 +658,7 @@ public class SampleService {
         }
 
     }
+
 
 
 
