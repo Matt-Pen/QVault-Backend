@@ -313,25 +313,28 @@ public class SampleService {
 
         Document doc=users.find(Filters.eq("email",user)).first();
             System.out.println("Chandu here");
+
+        if(doc==null) {
+            status = "failed";
+        }else{
             String dbuser = doc.getString("email");
             String dbpass = doc.getString("pass");
             String dbrole = doc.getString("role");
-
             if (dbuser.equals(user)) {
                 if (verifyPassword(pwd, dbpass)) {
                     status = "successfull";
                     if (dbrole.equals("student")) {
                         dash = "student";
                         System.out.println("in student");
-                    }
-                    else if (dbrole.equals("teacher")) {
+                    } else if (dbrole.equals("teacher")) {
                         dash = "teacher";
                     }
-                }else{
-                    status="password failed";
+                } else {
+                    status = "password failed";
                 }
 
             }
+        }
 
         JsonObject job=new JsonObject();
         job.put("message",status).put("role",dash);
