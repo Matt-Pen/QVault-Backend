@@ -119,25 +119,24 @@ public class SampleService {
         });
 
 // common metadata fields
-        String name = ctx.request().getFormAttribute("subname");
+        String name = ctx.request().getFormAttribute("course");
         String courseid = ctx.request().getFormAttribute("id");
         String department = ctx.request().getFormAttribute("department");
-        String courseName = ctx.request().getFormAttribute("coursename");
+        String courseName = ctx.request().getFormAttribute("program");
         String examTerm = ctx.request().getFormAttribute("term");
         String year = ctx.request().getFormAttribute("year");
-        String sem = ctx.request().getFormAttribute("sem");
+
 
         try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
             MongoDatabase database = mongoClient.getDatabase("questpaper");
             MongoCollection<Document> collection = database.getCollection("qpimage");
 
-            Document doc = new Document("subname", name)
+            Document doc = new Document("course", name)
                     .append("courseid", courseid)
                     .append("department", department)
-                    .append("coursename", courseName)
+                    .append("program", courseName)
                     .append("term", examTerm)
                     .append("year", year)
-                    .append("sem", sem)
                     .append("files", pdfList); //array
 
             collection.insertOne(doc);
@@ -304,7 +303,7 @@ public class SampleService {
 
     public void userlog(RoutingContext ctx) {
 
-        System.out.println("chandu here");
+
         String user = ctx.request().getParam("Email");
         String pwd = ctx.request().getParam("Password");
         String status = "failed";
@@ -312,7 +311,7 @@ public class SampleService {
         ctx.response().setChunked(true);
 
         Document doc=users.find(Filters.eq("email",user)).first();
-            System.out.println("Chandu here");
+
 
         if(doc==null) {
             status = "failed";
@@ -325,7 +324,7 @@ public class SampleService {
                     status = "successfull";
                     if (dbrole.equals("student")) {
                         dash = "student";
-                        System.out.println("in student");
+
                     } else if (dbrole.equals("teacher")) {
                         dash = "teacher";
                     }
@@ -353,6 +352,7 @@ public class SampleService {
 
     public int resetpass(RoutingContext ctx)
     {   ctx.response().setChunked(true);
+        JsonObject job=new JsonObject();
         int set=0;
         String email=ctx.request().getParam("email");
         String entoken=ctx.request().getParam("token");
@@ -369,7 +369,8 @@ public class SampleService {
             String tokemail=getoken(entoken);
             if(tokemail==null){
                 set=1;
-                ctx.response().write("Invalid token.");
+                job.put("token","invalid");
+                ctx.response().write(job.encode());
             }else {
 //            System.out.println("redis email"+tokemail);
                 if (tokemail.equals(email) || set != 1) {
@@ -378,11 +379,13 @@ public class SampleService {
                     Bson update = Updates.set("pass", hashpass);
                     UpdateResult res = users.updateOne(filter, update);
                     if (res.wasAcknowledged()) {
+                        job.put("status","success");
                         ctx.response().write("Password successfully changed.");
                         deltoken(entoken);
                     }
                 } else {
-                    ctx.response().write("invalid token or token has expired");
+                    job.put("token","invalid");
+                    ctx.response().write(job.encode());
                 }
             }
         }
@@ -390,16 +393,128 @@ public class SampleService {
         return set;
     }
 
-    public void searchfilter(RoutingContext ctx){
-       String subname=ctx.request().getParam("subject");
-       String courseid=ctx.request().getParam("courseid");
-       String coursename=ctx.request().getParam("coursename");
-       String term=ctx.request().getParam("term");
-       String year=ctx.request().getParam("year");
-       String sem=ctx.request().getParam("sem");
+    public void searchfilterpage(RoutingContext ctx){
+       String progname=ctx.request().getParam("program");
+       String status="";
 
+       if(progname!=null){
+           try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+               MongoDatabase database = mongoClient.getDatabase("questpaper");
+               MongoCollection<Document> collection = database.getCollection("qpimage");
+
+               // Find first document where coursename matches
+//            Document doc = collection.find(new Document("subname", coursename)).first();
+               Pattern pattern = Pattern.compile(progname, Pattern.CASE_INSENSITIVE);
+               Document doc = collection.find(Filters.regex("program", pattern)).first();
+               if (doc == null) {
+                   ctx.response().setStatusCode(404).end("Image not found for program: " + progname);
+                   return;
+               }
+
+
+               ArrayList<Object> main = new ArrayList<>();
+               for(Document docs: collection.find(Filters.regex("program", pattern))){
+                   String subname=docs.getString("course");
+                   String courseid=docs.getString("courseid");
+                   String coursename2=docs.getString("program");
+                   String term=docs.getString("term");
+                   String year=docs.getString("year");
+                   String sem=docs.getString("sem");
+                   ArrayList<Object> list1 = new ArrayList<>();
+                   ArrayList<Binary> pdfs = (ArrayList<Binary>) doc.get("files");
+
+                   list1.add(subname);
+                   list1.add(courseid);
+                   list1.add(coursename2);
+                   list1.add(term);
+                   list1.add(year);
+                   list1.add(sem);
+                   list1.add(pdfs);
+
+                   main.add(list1);
+
+               }
+               Gson gson = new GsonBuilder().setPrettyPrinting().create();
+               String jsonOutput = gson.toJson(main);
+               ctx.response()
+                       .putHeader("Content-Type", "application/json")
+                       .end(jsonOutput);
+
+           }catch (Exception e) {
+               e.printStackTrace();
+               ctx.response().setStatusCode(500).end("Failed to fetch image");
+           }
+
+       }
+    }
+
+    public void searchfilterpagefilter(RoutingContext ctx){
+        String course=ctx.request().getParam("course");
+        String year1=ctx.request().getParam("year");
+        String term1=ctx.request().getParam("term");
+        String status="";
+        Document filter=new Document();
+        if(course!=null){
+            filter.append("course",course);
+        }
+        if(year1!=null) {
+            filter.append("year",year1);
+        }
+        if(term1!=null) {
+            filter.append("term",term1);
+        }
+        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+                MongoDatabase database = mongoClient.getDatabase("questpaper");
+                MongoCollection<Document> collection = database.getCollection("qpimage");
+
+                // Find first document where coursename matches
+//            Document doc = collection.find(new Document("subname", coursename)).first();
+
+                Document doc = collection.find(filter).first();
+                if (doc == null) {
+                    ctx.response().setStatusCode(404).end("Image not found for program: ");
+                    return;
+                }
+
+
+                ArrayList<Object> main = new ArrayList<>();
+                for(Document docs: collection.find(filter)){
+                    String subname=docs.getString("course");
+                    String courseid=docs.getString("courseid");
+                    String coursename2=docs.getString("program");
+                    String term=docs.getString("term");
+                    String year=docs.getString("year");
+                    String sem=docs.getString("sem");
+                    ArrayList<Object> list1 = new ArrayList<>();
+                    ArrayList<Binary> pdfs = (ArrayList<Binary>) doc.get("files");
+
+                    list1.add(subname);
+                    list1.add(courseid);
+                    list1.add(coursename2);
+                    list1.add(term);
+                    list1.add(year);
+                    list1.add(sem);
+                    list1.add(pdfs);
+
+                    main.add(list1);
+
+                }
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                String jsonOutput = gson.toJson(main);
+                ctx.response()
+                        .putHeader("Content-Type", "application/json")
+                        .end(jsonOutput);
+
+            }catch (Exception e) {
+                e.printStackTrace();
+                ctx.response().setStatusCode(500).end("Failed to fetch image");
+            }
 
     }
+
+
+
+
 
 
     public static String generateID(int length) {

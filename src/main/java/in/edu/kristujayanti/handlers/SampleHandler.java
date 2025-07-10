@@ -16,6 +16,15 @@ public class SampleHandler extends AbstractVerticle {
         HttpServer server = vertx.createHttpServer();
 
         Router router = Router.router(vertx);
+        router.route().handler(CorsHandler.create("*")
+                .allowedMethod(HttpMethod.OPTIONS)
+                .allowedMethod(HttpMethod.POST)
+                .allowedMethod(HttpMethod.GET)
+                .allowedMethod(HttpMethod.DELETE)
+                .allowedMethod(HttpMethod.PATCH)
+                .allowedHeader("Content-Type")
+                .allowedHeader("Authorization"));
+
         router.route().handler(BodyHandler.create());
         SampleService smp= new SampleService();
 
@@ -27,17 +36,15 @@ public class SampleHandler extends AbstractVerticle {
         router.get("/getqp").handler(smp::getqp2);
         router.get("/test").handler(ctx->
                 ctx.response().end("Heloooo"));
+        router.get("/courseclick").handler(smp::searchfilterpage);
+        router.get("/filterclick").handler(smp::searchfilterpagefilter);
 
 
 
 
-        router.route().handler(CorsHandler.create("*")
-                .allowedMethod(HttpMethod.OPTIONS)
-                .allowedMethod(HttpMethod.POST)
-                .allowedMethod(HttpMethod.GET)
-                .allowedMethod(HttpMethod.DELETE)
-                .allowedMethod(HttpMethod.PATCH)
-                .allowedHeader("Content-Type"));
+
+
+
         Future<HttpServer> fut=server.requestHandler(router).listen(8080,"0.0.0.0");
         if(fut.succeeded()){
             System.out.println("Server running at http://localhost:8080");
