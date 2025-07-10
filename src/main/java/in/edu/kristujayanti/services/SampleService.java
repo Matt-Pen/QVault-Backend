@@ -360,6 +360,7 @@ public class SampleService {
         String pass=ctx.request().getParam("newPassword");
         if(entoken==null){
             String token=generateID(6);
+            System.out.println(token);
             setoken(token,email);
             sendtokenemail(token,email);
             job.put("message","sent");
@@ -625,7 +626,7 @@ public class SampleService {
                     "      font-family: 'Courier New', Courier, monospace;\n" +
                     "      letter-spacing: 2px;\n" +
                     "    \">\n" +
-                    "      TBlh1X\n" +
+                          token +
                     "    </div>\n" +
                     "\n" +
                     "    <!-- Expiry -->\n" +
