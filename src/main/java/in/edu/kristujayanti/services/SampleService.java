@@ -342,7 +342,7 @@ public class SampleService {
         job.put("message",status).put("role",dash);
 
 
-        ctx.response().putHeader("Content.Type","application/json").end(job.encode());
+        ctx.response().putHeader("Content-Type","application/json").end(job.encode());
         System.out.println("IN END");
     }
 
