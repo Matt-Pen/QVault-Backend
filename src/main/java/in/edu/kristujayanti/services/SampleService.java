@@ -1,9 +1,6 @@
 package in.edu.kristujayanti.services;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.*;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.GridFSBuckets;
 import com.mongodb.client.gridfs.model.GridFSUploadOptions;
@@ -18,6 +15,7 @@ import in.edu.kristujayanti.secretclass;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.FileUpload;
@@ -28,15 +26,19 @@ import jakarta.mail.internet.MimeMessage;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.Binary;
+import org.bson.types.ObjectId;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import redis.clients.jedis.Jedis;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import javax.print.Doc;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -58,50 +60,60 @@ public class SampleService {
 //    MongoCollection<Document> tasks = database.getCollection("tasks");
 //    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
-//    public void handleupload(RoutingContext ctx){
-//        ctx.fileUploads().forEach(upload -> {
-//            String uploadedFilePath = upload.uploadedFileName();
-//            String originalFileName = upload.fileName();
-//
-//            // Get extra fields from form-data (query param or request param)
-//            String name = ctx.request().getFormAttribute("subname");
-//            String courseid = ctx.request().getFormAttribute("id");
-//            String department = ctx.request().getFormAttribute("department");
-//            String courseName = ctx.request().getFormAttribute("coursename");
-//            String examTerm = ctx.request().getFormAttribute("term");
-//            String year = ctx.request().getFormAttribute("year");
-//            String sem = ctx.request().getFormAttribute("sem");
-//
-//            try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017");
-//                 FileInputStream stream = new FileInputStream(uploadedFilePath)) {
-//
-//                MongoDatabase database = mongoClient.getDatabase("questpaper");
-//                GridFSBucket gridFSBucket = GridFSBuckets.create(database, "exam_images");
-//
-//                // Custom metadata with the image
-//                Document metadata = new Document("subname", name)
-//                        .append("courseid",courseid)
-//                        .append("department", department)
-//                        .append("coursename", courseName)
-//                        .append("term", examTerm)
-//                        .append("year",year)
-//                        .append("sem",sem)
-//                        .append("content_type", upload.contentType());
-//
-//                GridFSUploadOptions options = new GridFSUploadOptions().metadata(metadata);
-//
-//                gridFSBucket.uploadFromStream(originalFileName, stream, options);
-//
-//                ctx.response().end("Image with metadata uploaded successfully!");
-//
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//                ctx.response().setStatusCode(500).end("Upload failed");
-//            }
-//        });
-//
-//    }
 
+    public void handleupload2(RoutingContext ctx) {
+        Vertx vertx = Vertx.vertx(); // Required if you're inside a non-verticle class
+
+        // Common metadata fields
+        String name = ctx.request().getFormAttribute("course");
+        String courseid = ctx.request().getFormAttribute("id");
+        String department = ctx.request().getFormAttribute("department");
+        String courseName = ctx.request().getFormAttribute("program");
+        String examTerm = ctx.request().getFormAttribute("term");
+        String year = ctx.request().getFormAttribute("year");
+
+        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            MongoDatabase database = mongoClient.getDatabase("questpaper");
+
+            // Use GridFS to store PDFs
+            GridFSBucket gridFSBucket = GridFSBuckets.create(database);
+            List<ObjectId> pdfIds = new ArrayList<>();
+
+            for (FileUpload upload : ctx.fileUploads()) {
+                try {
+                    if (upload.contentType().equals("application/pdf")) {
+                        Path filePath = Paths.get(upload.uploadedFileName());
+                        try (InputStream pdfStream = Files.newInputStream(filePath)) {
+                            ObjectId fileId = gridFSBucket.uploadFromStream(upload.fileName(), pdfStream);
+                            pdfIds.add(fileId);
+                        }
+                    } else {
+                        System.out.println("Skipping non-PDF file: " + upload.fileName());
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            // Store metadata and reference to GridFS files
+            MongoCollection<Document> collection = database.getCollection("qpimage");
+
+            Document doc = new Document("course", name)
+                    .append("courseid", courseid)
+                    .append("department", department)
+                    .append("program", courseName)
+                    .append("term", examTerm)
+                    .append("year", year)
+                    .append("fileIds", pdfIds);  // Save GridFS file references
+
+            collection.insertOne(doc);
+
+            ctx.response().end("PDF(s) uploaded to GridFS and metadata saved.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            ctx.response().setStatusCode(500).end("Failed to save PDFs with GridFS");
+        }
+    }
 
     public void handleupload(RoutingContext ctx) {
 
@@ -424,124 +436,145 @@ public class SampleService {
 
     }
 
-    public void searchfilterpage(RoutingContext ctx){
-       String progname=ctx.request().getParam("program");
-       String status="";
-        System.out.println("helo amal");
+    public void searchfilterpage(RoutingContext ctx) {
+        String progname = ctx.request().getParam("program");
 
-       if(progname!=null){
-           try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
-               MongoDatabase database = mongoClient.getDatabase("questpaper");
-               MongoCollection<Document> collection = database.getCollection("qpimage");
-
-               // Find first document where coursename matches
-//            Document doc = collection.find(new Document("subname", coursename)).first();
-               Pattern pattern = Pattern.compile(progname, Pattern.CASE_INSENSITIVE);
-               Document doc = collection.find(Filters.regex("program", pattern)).first();
-               if (doc == null) {
-                   ctx.response().setStatusCode(404).end("Image not found for program: " + progname);
-                   return;
-               }
-
-
-               ArrayList<Object> main = new ArrayList<>();
-               for(Document docs: collection.find(Filters.regex("program", pattern))){
-                   String subname=docs.getString("course");
-                   String courseid=docs.getString("courseid");
-                   String coursename2=docs.getString("program");
-                   String term=docs.getString("term");
-                   String year=docs.getString("year");
-                   String sem=docs.getString("department");
-                   ArrayList<Object> list1 = new ArrayList<>();
-                   ArrayList<Binary> pdfs = (ArrayList<Binary>) doc.get("files");
-
-                   list1.add(subname);
-                   list1.add(courseid);
-                   list1.add(sem);
-                   list1.add(coursename2);
-                   list1.add(term);
-                   list1.add(year);
-                   list1.add(pdfs);
-
-                   main.add(list1);
-
-               }
-               Gson gson = new GsonBuilder().setPrettyPrinting().create();
-               String jsonOutput = gson.toJson(main);
-               ctx.response()
-                       .putHeader("Content-Type", "application/json")
-                       .end(jsonOutput);
-
-           }catch (Exception e) {
-               e.printStackTrace();
-               ctx.response().setStatusCode(500).end("search failed");
-           }
-
-       }
-    }
-
-    public void searchfilterpagefilter(RoutingContext ctx){
-        String course=ctx.request().getParam("course");
-        String year1=ctx.request().getParam("year");
-        String term1=ctx.request().getParam("term");
-        String status="";
-        Document filter=new Document();
-        if(course!=null){
-            filter.append("course",course);
-        }
-        if(year1!=null) {
-            filter.append("year",year1);
-        }
-        if(term1!=null) {
-            filter.append("term",term1);
-        }
-        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+        if (progname != null) {
+            try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
                 MongoDatabase database = mongoClient.getDatabase("questpaper");
                 MongoCollection<Document> collection = database.getCollection("qpimage");
 
-                // Find first document where coursename matches
-//            Document doc = collection.find(new Document("subname", coursename)).first();
+                Pattern pattern = Pattern.compile(progname, Pattern.CASE_INSENSITIVE);
+                List<Map<String, Object>> main = new ArrayList<>();
 
-                Document doc = collection.find(filter).first();
-                if (doc == null) {
-                    ctx.response().setStatusCode(404).end("Image not found for program: ");
-                    return;
+                for (Document doc : collection.find(Filters.regex("program", pattern))) {
+                    Map<String, Object> paper = new LinkedHashMap<>();
+                    paper.put("course", doc.getString("course"));
+                    paper.put("courseid", doc.getString("courseid"));
+                    paper.put("department", doc.getString("department"));
+                    paper.put("program", doc.getString("program"));
+                    paper.put("term", doc.getString("term"));
+                    paper.put("year", doc.getString("year"));
+
+                    List<ObjectId> fileIdList = (List<ObjectId>) doc.get("fileIds");
+
+                    if (fileIdList != null && !fileIdList.isEmpty()) {
+                        // Use host from request (e.g. 192.168.1.107:8080)
+                        String host = ctx.request().host();
+                        String fileId = fileIdList.get(0).toHexString();
+                        String pdfUrl = fileId;
+                        paper.put("pdfUrl", pdfUrl);
+                    } else {
+                        paper.put("pdfUrl", null);
+                    }
+
+                    main.add(paper);
                 }
 
-
-                ArrayList<Object> main = new ArrayList<>();
-                for(Document docs: collection.find(filter)){
-                    String subname=docs.getString("course");
-                    String courseid=docs.getString("courseid");
-                    String coursename2=docs.getString("program");
-                    String term=docs.getString("term");
-                    String year=docs.getString("year");
-                    String sem=docs.getString("department");
-                    ArrayList<Object> list1 = new ArrayList<>();
-                    ArrayList<Binary> pdfs = (ArrayList<Binary>) doc.get("files");
-
-                    list1.add(subname);
-                    list1.add(courseid);
-                    list1.add(sem);
-                    list1.add(coursename2);
-                    list1.add(term);
-                    list1.add(year);
-                    list1.add(pdfs);
-
-                    main.add(list1);
-
-                }
                 Gson gson = new GsonBuilder().setPrettyPrinting().create();
                 String jsonOutput = gson.toJson(main);
                 ctx.response()
                         .putHeader("Content-Type", "application/json")
                         .end(jsonOutput);
 
-            }catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
-                ctx.response().setStatusCode(500).end("search failed");
+                ctx.response().setStatusCode(500).end("Search failed");
+            }
+        } else {
+            ctx.response().setStatusCode(400).end("Missing program parameter");
+        }
+    }
+    public void getPdfById(RoutingContext ctx) {
+        String id = ctx.request().getParam("id");
+
+        if (id == null || id.isEmpty()) {
+            ctx.response().setStatusCode(400).end("Missing PDF id");
+            return;
+        }
+
+        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            MongoDatabase database = mongoClient.getDatabase("questpaper");
+            GridFSBucket gridFSBucket = GridFSBuckets.create(database);
+
+            ObjectId fileId = new ObjectId(id);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+            gridFSBucket.downloadToStream(fileId, outputStream);
+
+            byte[] pdfBytes = outputStream.toByteArray();
+
+            ctx.response()
+                    .putHeader("Content-Type", "application/pdf")
+                    .putHeader("Content-Disposition", "inline; filename=\"questionpaper.pdf\"")
+                    .putHeader("Content-Length", String.valueOf(pdfBytes.length))
+                    .end(Buffer.buffer(pdfBytes)); // Vert.x Buffer from byte[]
+        } catch (Exception e) {
+            e.printStackTrace();
+            ctx.response().setStatusCode(500).end("Failed to retrieve PDF");
+        }
+    }
+
+    public void searchfilterpagefilter(RoutingContext ctx) {
+        String course = ctx.request().getParam("course");
+        String year1 = ctx.request().getParam("year");
+        String term1 = ctx.request().getParam("term");
+
+        Document filter = new Document();
+        if (course != null) {
+            filter.append("course", course);
+        }
+        if (year1 != null) {
+            filter.append("year", year1);
+        }
+        if (term1 != null) {
+            filter.append("term", term1);
+        }
+
+        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            MongoDatabase database = mongoClient.getDatabase("questpaper");
+            MongoCollection<Document> collection = database.getCollection("qpimage");
+
+            FindIterable<Document> results = collection.find(filter);
+            if (!results.iterator().hasNext()) {
+                ctx.response().setStatusCode(404).end("No matching documents found.");
+                return;
             }
 
+            List<Map<String, Object>> main = new ArrayList<>();
+
+            for (Document docs : results) {
+                Map<String, Object> list1 = new LinkedHashMap<>();
+                list1.put("course", docs.getString("course"));
+                list1.put("courseid", docs.getString("courseid"));
+                list1.put("department", docs.getString("department"));
+                list1.put("program", docs.getString("program"));
+                list1.put("term", docs.getString("term"));
+                list1.put("year", docs.getString("year"));
+
+                // Extract GridFS fileId from document
+                List<ObjectId> fileIds = (List<ObjectId>) docs.get("fileIds");
+                if (fileIds != null && !fileIds.isEmpty()) {
+                    String host = ctx.request().host(); // e.g., 192.168.1.107:8080
+                    String pdfUrl = fileIds.get(0).toHexString();
+                    list1.put("pdfUrl", pdfUrl);
+                } else {
+                    list1.put("pdfUrl", null);
+                }
+
+                main.add(list1);
+            }
+
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            String jsonOutput = gson.toJson(main);
+            ctx.response()
+                    .putHeader("Content-Type", "application/json")
+                    .end(jsonOutput);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            ctx.response().setStatusCode(500).end("Search failed");
+        }
     }
 
     public void wishlistadd(RoutingContext ctx){
