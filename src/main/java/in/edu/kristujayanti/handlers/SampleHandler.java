@@ -33,12 +33,15 @@ public class SampleHandler extends AbstractVerticle {
         router.post("/resetpass").handler(smp::resetpass);
         router.post("/upload").handler(BodyHandler.create());
         router.post("/upload").handler(smp::handleupload);
-        router.get("/getqp").handler(smp::getqp2);
+        router.get("/getqp2").handler(smp::getqp2);
         router.delete("/delqp").handler(smp::delqp);
         router.get("/test").handler(ctx->
                 ctx.response().end("Heloooo"));
         router.get("/courseclick").handler(smp::searchfilterpage);
         router.get("/filterclick").handler(smp::searchfilterpagefilter);
+
+        router.post("/wishadd").handler(smp::wishlistadd);
+        router.get("/wishget").handler(smp::wishlistget);
 
 
 

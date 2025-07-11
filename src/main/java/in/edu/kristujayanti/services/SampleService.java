@@ -33,6 +33,7 @@ import redis.clients.jedis.Jedis;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import javax.print.Doc;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -53,6 +54,7 @@ public class SampleService {
     MongoClient mongoClient = MongoClients.create(connectionString);
     MongoDatabase database = mongoClient.getDatabase("questpaper");
     MongoCollection<Document> users = database.getCollection("Users");
+    MongoCollection<Document> wish = database.getCollection("wishlist");
 //    MongoCollection<Document> tasks = database.getCollection("tasks");
 //    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
@@ -425,6 +427,7 @@ public class SampleService {
     public void searchfilterpage(RoutingContext ctx){
        String progname=ctx.request().getParam("program");
        String status="";
+        System.out.println("helo amal");
 
        if(progname!=null){
            try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
@@ -448,16 +451,16 @@ public class SampleService {
                    String coursename2=docs.getString("program");
                    String term=docs.getString("term");
                    String year=docs.getString("year");
-                   String sem=docs.getString("sem");
+                   String sem=docs.getString("department");
                    ArrayList<Object> list1 = new ArrayList<>();
                    ArrayList<Binary> pdfs = (ArrayList<Binary>) doc.get("files");
 
                    list1.add(subname);
                    list1.add(courseid);
+                   list1.add(sem);
                    list1.add(coursename2);
                    list1.add(term);
                    list1.add(year);
-                   list1.add(sem);
                    list1.add(pdfs);
 
                    main.add(list1);
@@ -513,16 +516,16 @@ public class SampleService {
                     String coursename2=docs.getString("program");
                     String term=docs.getString("term");
                     String year=docs.getString("year");
-                    String sem=docs.getString("sem");
+                    String sem=docs.getString("department");
                     ArrayList<Object> list1 = new ArrayList<>();
                     ArrayList<Binary> pdfs = (ArrayList<Binary>) doc.get("files");
 
                     list1.add(subname);
                     list1.add(courseid);
+                    list1.add(sem);
                     list1.add(coursename2);
                     list1.add(term);
                     list1.add(year);
-                    list1.add(sem);
                     list1.add(pdfs);
 
                     main.add(list1);
@@ -538,6 +541,93 @@ public class SampleService {
                 e.printStackTrace();
                 ctx.response().setStatusCode(500).end("search failed");
             }
+
+    }
+
+    public void wishlistadd(RoutingContext ctx){
+        String email=ctx.request().getParam("email");
+        String cid=ctx.request().getParam("courseid");
+        JsonObject job=new JsonObject();
+
+        Document doc=new Document().append("email",email).append("courseid",cid);
+        Bson filter2 = Filters.and(Filters.eq("email", email), Filters.eq("courseid",cid));
+
+        Document docs=wish.find().filter(filter2).first();
+        if(docs!=null){
+            job.put("message","exist");
+            ctx.response().end(job.encode());
+            return;
+        }
+
+        InsertOneResult ins=wish.insertOne(doc);
+        if(ins.wasAcknowledged()){
+            job.put("message","success");
+        }else{
+            job.put("message","failed");
+        }
+        ctx.response().end(job.encode());
+
+    }
+
+    public void wishlistget(RoutingContext ctx){
+        String email=ctx.request().getParam("email");
+        ctx.response().setChunked(true);
+        String status="";
+        JsonObject job=new JsonObject();
+        System.out.println("helo amal");
+
+        if(email!=null){
+            try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+                MongoDatabase database = mongoClient.getDatabase("questpaper");
+                MongoCollection<Document> collection = database.getCollection("qpimage");
+
+                Pattern pattern = Pattern.compile(email, Pattern.CASE_INSENSITIVE);
+                Document doc = wish.find(Filters.regex("email", pattern)).first();
+                if (doc == null) {
+                   job.put("message","not found");
+                   ctx.response().end(job.encode());
+                    return;
+                }
+
+
+                ArrayList<Object> main = new ArrayList<>();
+                for(Document docc:wish.find(Filters.regex("email", pattern))) {
+                    String cid=docc.getString("courseid");
+                    for (Document docs : collection.find(Filters.eq("courseid", cid))) {
+                        String subname = docs.getString("course");
+                        String courseid = docs.getString("courseid");
+                        String coursename2 = docs.getString("program");
+                        String term = docs.getString("term");
+                        String year = docs.getString("year");
+                        String sem = docs.getString("department");
+                        ArrayList<Object> list1 = new ArrayList<>();
+                        ArrayList<Binary> pdfs = (ArrayList<Binary>) docs.get("files");
+
+                        list1.add(subname);
+                        list1.add(courseid);
+                        list1.add(sem);
+                        list1.add(coursename2);
+                        list1.add(term);
+                        list1.add(year);
+                        list1.add(pdfs);
+
+                        main.add(list1);
+
+                    }
+                }
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                String jsonOutput = gson.toJson(main);
+                ctx.response()
+                        .putHeader("Content-Type", "application/json")
+                        .end(jsonOutput);
+
+            }catch (Exception e) {
+                e.printStackTrace();
+                ctx.response().setStatusCode(500).end("search failed");
+            }
+
+        }
+
 
     }
 
