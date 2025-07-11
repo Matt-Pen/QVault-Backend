@@ -625,9 +625,22 @@ public class SampleService {
                 e.printStackTrace();
                 ctx.response().setStatusCode(500).end("search failed");
             }
-
         }
+    }
+    public void wishlistdel(RoutingContext ctx){
+        String email=ctx.request().getParam("email");
+        String cid=ctx.request().getParam("courseid");
+        JsonObject job=new JsonObject();
 
+        Document doc=new Document().append("email",email).append("courseid",cid);
+
+        DeleteResult ins=wish.deleteOne(doc);
+        if(ins.wasAcknowledged()){
+            job.put("message","success");
+        }else{
+            job.put("message","failed");
+        }
+        ctx.response().end(job.encode());
 
     }
 

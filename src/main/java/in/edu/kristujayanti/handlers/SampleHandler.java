@@ -42,6 +42,7 @@ public class SampleHandler extends AbstractVerticle {
 
         router.post("/wishadd").handler(smp::wishlistadd);
         router.get("/wishget").handler(smp::wishlistget);
+        router.delete("/wishdel").handler(smp::wishlistdel);
 
 
 
