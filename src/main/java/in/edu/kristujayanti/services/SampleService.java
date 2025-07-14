@@ -540,7 +540,7 @@ public class SampleService {
         String course = ctx.request().getParam("course");
         String year1 = ctx.request().getParam("year");
         String term1 = ctx.request().getParam("term");
-
+        System.out.println("hello search filter");
         Document filter = new Document();
         if (course != null) {
             filter.append("course", course);
@@ -599,13 +599,61 @@ public class SampleService {
         }
     }
 
+    public void teacherpage(RoutingContext ctx){
+
+        {
+            try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+                MongoDatabase database = mongoClient.getDatabase("questpaper");
+                MongoCollection<Document> collection = database.getCollection("qpimage");
+
+
+                List<Map<String, Object>> main = new ArrayList<>();
+
+                for (Document doc : collection.find()) {
+                    Map<String, Object> paper = new LinkedHashMap<>();
+                    paper.put("id",doc.getObjectId("_id").toHexString());
+                    paper.put("course", doc.getString("course"));
+                    paper.put("courseid", doc.getString("courseid"));
+                    paper.put("department", doc.getString("department"));
+                    paper.put("program", doc.getString("program"));
+                    paper.put("term", doc.getString("term"));
+                    paper.put("year", doc.getString("year"));
+
+                    List<ObjectId> fileIdList = (List<ObjectId>) doc.get("fileIds");
+
+                    if (fileIdList != null && !fileIdList.isEmpty()) {
+                        // Use host from request (e.g. 192.168.1.107:8080)
+                        String host = ctx.request().host();
+                        String fileId = fileIdList.get(0).toHexString();
+                        String pdfUrl = fileId;
+                        paper.put("pdfUrl", pdfUrl);
+                    } else {
+                        paper.put("pdfUrl", null);
+                    }
+
+                    main.add(paper);
+                }
+
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                String jsonOutput = gson.toJson(main);
+                ctx.response()
+                        .putHeader("Content-Type", "application/json")
+                        .end(jsonOutput);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                ctx.response().setStatusCode(500).end("Search failed");
+            }
+
+    }
+}
     public void wishlistadd(RoutingContext ctx){
         String email=ctx.request().getParam("email");
-        String cid=ctx.request().getParam("courseid");
+        String cid=ctx.request().getParam("id");
         JsonObject job=new JsonObject();
 
-        Document doc=new Document().append("email",email).append("courseid",cid);
-        Bson filter2 = Filters.and(Filters.eq("email", email), Filters.eq("courseid",cid));
+        Document doc=new Document().append("email",email).append("id",cid);
+        Bson filter2 = Filters.and(Filters.eq("email", email), Filters.eq("id",cid));
 
         Document docs=wish.find().filter(filter2).first();
         if(docs!=null){
@@ -624,70 +672,75 @@ public class SampleService {
 
     }
 
-    public void wishlistget(RoutingContext ctx){
-        String email=ctx.request().getParam("email");
+    public void wishlistget(RoutingContext ctx) {
+        String email = ctx.request().getParam("email");
         ctx.response().setChunked(true);
-        String status="";
-        JsonObject job=new JsonObject();
-        System.out.println("helo amal");
+        JsonObject job = new JsonObject();
 
-        if(email!=null){
+        if (email != null) {
             try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
                 MongoDatabase database = mongoClient.getDatabase("questpaper");
+                MongoCollection<Document> wish = database.getCollection("wishlist"); // Make sure this is the correct collection name
                 MongoCollection<Document> collection = database.getCollection("qpimage");
 
                 Pattern pattern = Pattern.compile(email, Pattern.CASE_INSENSITIVE);
                 Document doc = wish.find(Filters.regex("email", pattern)).first();
+
                 if (doc == null) {
-                   job.put("message","not found");
-                   ctx.response().end(job.encode());
+                    job.put("message", "not found");
+                    ctx.response().end(job.encode());
                     return;
                 }
 
+                List<Map<String, Object>> main = new ArrayList<>();
 
-                ArrayList<Object> main = new ArrayList<>();
-                for(Document docc:wish.find(Filters.regex("email", pattern))) {
-                    String cid=docc.getString("courseid");
-                    for (Document docs : collection.find(Filters.eq("courseid", cid))) {
-                        String subname = docs.getString("course");
-                        String courseid = docs.getString("courseid");
-                        String coursename2 = docs.getString("program");
-                        String term = docs.getString("term");
-                        String year = docs.getString("year");
-                        String sem = docs.getString("department");
-                        ArrayList<Object> list1 = new ArrayList<>();
-                        ArrayList<Binary> pdfs = (ArrayList<Binary>) docs.get("files");
+                for (Document docc : wish.find(Filters.regex("email", pattern))) {
+                    String cid = docc.getString("id");
+                    Document docs = collection.find(Filters.eq("_id", new ObjectId(cid))).first();
 
-                        list1.add(subname);
-                        list1.add(courseid);
-                        list1.add(sem);
-                        list1.add(coursename2);
-                        list1.add(term);
-                        list1.add(year);
-                        list1.add(pdfs);
+                    if (docs != null) {
+                        Map<String, Object> paper = new LinkedHashMap<>();
+                        paper.put("id", docs.getObjectId("_id").toHexString());
+                        paper.put("course", docs.getString("course"));
+                        paper.put("courseid", docs.getString("courseid"));
+                        paper.put("department", docs.getString("department"));
+                        paper.put("program", docs.getString("program"));
+                        paper.put("term", docs.getString("term"));
+                        paper.put("year", docs.getString("year"));
 
-                        main.add(list1);
+                        List<ObjectId> fileIdList = (List<ObjectId>) docs.get("fileIds");
 
+                        if (fileIdList != null && !fileIdList.isEmpty()) {
+                            String fileId = fileIdList.get(0).toHexString();
+                            paper.put("pdfUrl", fileId);
+                        } else {
+                            paper.put("pdfUrl", null);
+                        }
+
+                        main.add(paper);
                     }
                 }
+
                 Gson gson = new GsonBuilder().setPrettyPrinting().create();
                 String jsonOutput = gson.toJson(main);
                 ctx.response()
                         .putHeader("Content-Type", "application/json")
                         .end(jsonOutput);
 
-            }catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
-                ctx.response().setStatusCode(500).end("search failed");
+                ctx.response().setStatusCode(500).end("Search failed");
             }
+        } else {
+            ctx.response().setStatusCode(400).end("Missing email parameter");
         }
     }
     public void wishlistdel(RoutingContext ctx){
         String email=ctx.request().getParam("email");
-        String cid=ctx.request().getParam("courseid");
+        String cid=ctx.request().getParam("id");
         JsonObject job=new JsonObject();
 
-        Document doc=new Document().append("email",email).append("courseid",cid);
+        Document doc=new Document().append("email",email).append("id",cid);
 
         DeleteResult ins=wish.deleteOne(doc);
         if(ins.wasAcknowledged()){

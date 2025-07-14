@@ -39,6 +39,7 @@ public class SampleHandler extends AbstractVerticle {
                 ctx.response().end("Heloooo"));
         router.get("/courseclick").handler(smp::searchfilterpage);
         router.get("/filterclick").handler(smp::searchfilterpagefilter);
+        router.get("/teacher").handler(smp::teacherpage);
 
         router.get("/pdf").handler(smp::getPdfById);
 
