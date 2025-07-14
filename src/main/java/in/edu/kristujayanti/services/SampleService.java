@@ -63,7 +63,7 @@ public class SampleService {
 
     public void handleupload2(RoutingContext ctx) {
         Vertx vertx = Vertx.vertx(); // Required if you're inside a non-verticle class
-
+        System.out.println("upload called");
         // Common metadata fields
         String name = ctx.request().getFormAttribute("course");
         String courseid = ctx.request().getFormAttribute("id");
@@ -71,6 +71,7 @@ public class SampleService {
         String courseName = ctx.request().getFormAttribute("program");
         String examTerm = ctx.request().getFormAttribute("term");
         String year = ctx.request().getFormAttribute("year");
+        JsonObject job=new JsonObject();
 
         try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
             MongoDatabase database = mongoClient.getDatabase("questpaper");
@@ -106,9 +107,15 @@ public class SampleService {
                     .append("year", year)
                     .append("fileIds", pdfIds);  // Save GridFS file references
 
-            collection.insertOne(doc);
+           InsertOneResult ins= collection.insertOne(doc);
+           if(ins.wasAcknowledged()){
+               job.put("message","success");
+           }else{
+               job.put("message","fail");
+           }
+           ctx.response().end(job.encode());
+            System.out.println("uploaded maybe");
 
-            ctx.response().end("PDF(s) uploaded to GridFS and metadata saved.");
         } catch (Exception e) {
             e.printStackTrace();
             ctx.response().setStatusCode(500).end("Failed to save PDFs with GridFS");
@@ -413,7 +420,8 @@ public class SampleService {
     public void delqp(RoutingContext ctx) {
         ctx.response().setChunked(true);
         String id = ctx.request().getParam("id");
-
+        System.out.println("IN DELETE QP");
+        JsonObject job=new JsonObject();
         try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
             MongoDatabase database = mongoClient.getDatabase("questpaper");
             MongoCollection<Document> collection = database.getCollection("qpimage");
@@ -441,12 +449,14 @@ public class SampleService {
 
             DeleteResult del = collection.deleteOne(Filters.eq("_id", obid));
             if (del.wasAcknowledged()) {
-                ctx.response().write("success");
+               job.put("message","success");
             } else {
-                ctx.response().write("failed");
+                job.put("message","failed");
             }
 
-            ctx.response().end();
+            ctx.response()
+                    .putHeader("Content-Type", "application/json")  // 👈 important!
+                    .end(job.encode());
 
         } catch (Exception e) {
             e.printStackTrace();
