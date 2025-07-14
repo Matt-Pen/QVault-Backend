@@ -410,31 +410,51 @@ public class SampleService {
         return set;
     }
 
-    public void delqp(RoutingContext ctx){
+    public void delqp(RoutingContext ctx) {
         ctx.response().setChunked(true);
-        String courseid=ctx.request().getParam("courseid");
+        String id = ctx.request().getParam("id");
+
         try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
             MongoDatabase database = mongoClient.getDatabase("questpaper");
             MongoCollection<Document> collection = database.getCollection("qpimage");
+            ObjectId obid = new ObjectId(id);
 
-            Bson filter=Filters.eq("courseid",courseid);
-            DeleteResult del=collection.deleteOne(filter);
-            if(del.wasAcknowledged()){
-                ctx.response().write("success");
-
-            }else{
-                ctx.response().write("failed");
-
+            Document metadataDoc = collection.find(Filters.eq("_id", obid)).first();
+            if (metadataDoc == null) {
+                ctx.response().setStatusCode(404).end("Document not found");
+                return;
             }
-        ctx.response().end();
 
-        }catch (Exception e) {
+            // Get the fileIds array
+            List<ObjectId> fileIds = (List<ObjectId>) metadataDoc.get("fileIds");
+
+            if (fileIds != null && !fileIds.isEmpty()) {
+                GridFSBucket gridFSBucket = GridFSBuckets.create(database);
+                for (ObjectId fid : fileIds) {
+                    if (fid != null) {
+                        gridFSBucket.delete(fid);
+                    }
+                }
+            } else {
+                System.out.println("fileIds missing or empty in document: " + metadataDoc.toJson());
+            }
+
+            DeleteResult del = collection.deleteOne(Filters.eq("_id", obid));
+            if (del.wasAcknowledged()) {
+                ctx.response().write("success");
+            } else {
+                ctx.response().write("failed");
+            }
+
+            ctx.response().end();
+
+        } catch (Exception e) {
             e.printStackTrace();
-            ctx.response().setStatusCode(500).end("Failed to fetch image");
+            ctx.response().setStatusCode(500).end("Failed to delete document");
         }
-
-
     }
+
+
 
     public void searchfilterpage(RoutingContext ctx) {
         String progname = ctx.request().getParam("program");
@@ -449,6 +469,7 @@ public class SampleService {
 
                 for (Document doc : collection.find(Filters.regex("program", pattern))) {
                     Map<String, Object> paper = new LinkedHashMap<>();
+                    paper.put("id",doc.getObjectId("_id").toHexString());
                     paper.put("course", doc.getString("course"));
                     paper.put("courseid", doc.getString("courseid"));
                     paper.put("department", doc.getString("department"));
@@ -545,6 +566,7 @@ public class SampleService {
 
             for (Document docs : results) {
                 Map<String, Object> list1 = new LinkedHashMap<>();
+                list1.put("id",docs.getObjectId("_id").toHexString());
                 list1.put("course", docs.getString("course"));
                 list1.put("courseid", docs.getString("courseid"));
                 list1.put("department", docs.getString("department"));
