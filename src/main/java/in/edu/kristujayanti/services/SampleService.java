@@ -823,7 +823,7 @@ public class SampleService {
                     "   \n" +
                     "    <!-- Logo -->\n" +
                     "    <div style=\"text-align: center; margin-bottom: 20px;\">\n" +
-                    "      <img src=\"https://i.postimg.cc/dVLPY53r/new.png\n\" alt=\"Qvault Logo\" width=\"400\" height=\"225\"/>\n" +
+                    "      <img src=\"https://i.postimg.cc/QdKHj2Wp/Screenshot-2025-07-15-110351.png\n\" alt=\"Qvault Logo\" width=\"400\" height=\"225\"/>\n" +
                     "    </div>\n" +
                     "\n" +
                     "    <!-- Heading -->\n" +
