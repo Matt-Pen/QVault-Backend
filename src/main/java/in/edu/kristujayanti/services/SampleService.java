@@ -73,7 +73,7 @@ public class SampleService {
         String year = ctx.request().getFormAttribute("year");
         JsonObject job=new JsonObject();
 
-        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+        try (MongoClient mongoClient = MongoClients.create(srt.constr)) {
             MongoDatabase database = mongoClient.getDatabase("questpaper");
 
             // Use GridFS to store PDFs
@@ -148,7 +148,7 @@ public class SampleService {
         String year = ctx.request().getFormAttribute("year");
 
 
-        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+        try (MongoClient mongoClient = MongoClients.create(srt.constr)) {
             MongoDatabase database = mongoClient.getDatabase("questpaper");
             MongoCollection<Document> collection = database.getCollection("qpimage");
 
@@ -422,7 +422,7 @@ public class SampleService {
         String id = ctx.request().getParam("id");
         System.out.println("IN DELETE QP");
         JsonObject job=new JsonObject();
-        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+        try (MongoClient mongoClient = MongoClients.create(srt.constr)) {
             MongoDatabase database = mongoClient.getDatabase("questpaper");
             MongoCollection<Document> collection = database.getCollection("qpimage");
             ObjectId obid = new ObjectId(id);
@@ -470,7 +470,7 @@ public class SampleService {
         String progname = ctx.request().getParam("program");
 
         if (progname != null) {
-            try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            try (MongoClient mongoClient = MongoClients.create(srt.constr)) {
                 MongoDatabase database = mongoClient.getDatabase("questpaper");
                 MongoCollection<Document> collection = database.getCollection("qpimage");
 
@@ -524,7 +524,7 @@ public class SampleService {
             return;
         }
 
-        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+        try (MongoClient mongoClient = MongoClients.create(srt.constr)) {
             MongoDatabase database = mongoClient.getDatabase("questpaper");
             GridFSBucket gridFSBucket = GridFSBuckets.create(database);
 
@@ -562,7 +562,7 @@ public class SampleService {
             filter.append("term", term1);
         }
 
-        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+        try (MongoClient mongoClient = MongoClients.create(srt.constr)) {
             MongoDatabase database = mongoClient.getDatabase("questpaper");
             MongoCollection<Document> collection = database.getCollection("qpimage");
 
@@ -612,7 +612,7 @@ public class SampleService {
     public void teacherpage(RoutingContext ctx){
 
         {
-            try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            try (MongoClient mongoClient = MongoClients.create(srt.constr)) {
                 MongoDatabase database = mongoClient.getDatabase("questpaper");
                 MongoCollection<Document> collection = database.getCollection("qpimage");
 
@@ -688,7 +688,7 @@ public class SampleService {
         JsonObject job = new JsonObject();
 
         if (email != null) {
-            try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            try (MongoClient mongoClient = MongoClients.create(srt.constr)) {
                 MongoDatabase database = mongoClient.getDatabase("questpaper");
                 MongoCollection<Document> wish = database.getCollection("wishlist"); // Make sure this is the correct collection name
                 MongoCollection<Document> collection = database.getCollection("qpimage");
